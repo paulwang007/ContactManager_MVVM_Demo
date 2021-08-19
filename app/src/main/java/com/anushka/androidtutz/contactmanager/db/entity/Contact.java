@@ -1,31 +1,25 @@
 package com.anushka.androidtutz.contactmanager.db.entity;
 
-import android.arch.persistence.room.ColumnInfo;
-import android.arch.persistence.room.Entity;
-import android.arch.persistence.room.Ignore;
-import android.arch.persistence.room.PrimaryKey;
-
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.Ignore;
+import androidx.room.PrimaryKey;
 
 @Entity(tableName = "contacts")
 public class Contact {
 
-
-    @ColumnInfo(name="contact_name")
+    @ColumnInfo(name = "contact_name")
     private String name;
-
-    @ColumnInfo(name="contact_email")
+    @ColumnInfo(name = "contact_email")
     private String email;
-
-    @ColumnInfo(name="contact_id")
-    @PrimaryKey(autoGenerate =true)
+    @ColumnInfo(name = "contact_id")
+    @PrimaryKey(autoGenerate = true)
     private long id;
 
 
     @Ignore
     public Contact() {
     }
-
-
 
     public Contact(long id, String name, String email) {
 
@@ -58,6 +52,4 @@ public class Contact {
     public void setId(long id) {
         this.id = id;
     }
-
-
 }
