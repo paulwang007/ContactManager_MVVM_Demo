@@ -12,7 +12,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.anushka.androidtutz.contactmanager.adapter.ContactsAdapter;
-import com.anushka.androidtutz.contactmanager.db.ContactsAppDatabase;
 import com.anushka.androidtutz.contactmanager.db.entity.Contact;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -21,21 +20,17 @@ import java.util.ArrayList;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.room.Room;
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.disposables.CompositeDisposable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
     private final ArrayList<Contact> contactArrayList = new ArrayList<>();
     private ContactsAdapter contactsAdapter;
     private RecyclerView recyclerView;
-    private ContactsAppDatabase contactsAppDatabase;
+    private ContactViewModel viewModel = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,26 +42,18 @@ public class MainActivity extends AppCompatActivity {
 
         recyclerView = findViewById(R.id.recycler_view_contacts);
 
-        contactsAppDatabase = Room.databaseBuilder(this, ContactsAppDatabase.class, "ContactDB").allowMainThreadQueries().build();
-        compositeDisposable.add(
-                contactsAppDatabase.getContactDAO().getContacts()
-                        .subscribeOn(Schedulers.computation())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(contacts -> {
-                                    contactArrayList.clear();
-                                    contactArrayList.addAll(contacts);
-                                },
-                                onError -> {
-                                    // Error handling
-                                }
-                        )
-        );
-
         contactsAdapter = new ContactsAdapter(this, contactArrayList, MainActivity.this);
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getApplicationContext());
         recyclerView.setLayoutManager(mLayoutManager);
         recyclerView.setItemAnimator(new DefaultItemAnimator());
         recyclerView.setAdapter(contactsAdapter);
+
+        viewModel = new ViewModelProvider.AndroidViewModelFactory(this.getApplication()).create(ContactViewModel.class);
+        viewModel.getAllContacts().observe(this, contacts -> {
+            contactArrayList.clear();
+            contactArrayList.addAll(contacts);
+            contactsAdapter.notifyDataSetChanged();
+        });
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -109,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
 
                                 if (isUpdate) {
 
-                                    deleteContact(contact, position);
+                                    viewModel.deleteContact(contact);
                                 } else {
 
                                     dialogBox.cancel();
@@ -134,51 +121,12 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (isUpdate && contact != null) {
-
-                    updateContact(newContact.getText().toString(), contactEmail.getText().toString(), position);
+                    viewModel.updateContact(new Contact(0, contact.getName(), contact.getEmail()));
                 } else {
-
-                    createContact(newContact.getText().toString(), contactEmail.getText().toString());
+                    viewModel.createContact(newContact.getText().toString(), contactEmail.getText().toString());
                 }
             }
         });
-    }
-
-    private void deleteContact(Contact contact, int position) {
-
-        contactArrayList.remove(position);
-        contactsAppDatabase.getContactDAO().deleteContact(contact);
-        contactsAdapter.notifyDataSetChanged();
-    }
-
-    private void updateContact(String name, String email, int position) {
-
-        Contact contact = contactArrayList.get(position);
-
-        contact.setName(name);
-        contact.setEmail(email);
-
-        contactsAppDatabase.getContactDAO().updateContact(contact);
-
-        contactArrayList.set(position, contact);
-
-        contactsAdapter.notifyDataSetChanged();
-
-    }
-
-    private void createContact(String name, String email) {
-        long temp_id = 0;
-        contactsAppDatabase.getContactDAO().addContact(new Contact(temp_id, name, email));
-
-        Contact contact = contactsAppDatabase.getContactDAO().getContact(temp_id);
-
-        if (contact != null) {
-
-            contactArrayList.add(0, contact);
-            contactsAdapter.notifyDataSetChanged();
-
-        }
-
     }
 
     @Override
@@ -198,12 +146,5 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        compositeDisposable.dispose();
     }
 }
